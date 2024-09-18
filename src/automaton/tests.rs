@@ -45,3 +45,32 @@ fn test_nfa() {
         assert!(!automaton.accepted(&chars[..]));
     }
 }
+
+#[derive(Copy, Clone, PartialEq)]
+enum Binary {
+    Zero,
+    One
+}
+
+impl Symbol for Binary {}
+
+#[test]
+fn test_nfa_with_enum() {
+    use Binary::*;
+    let automaton = NFA::new(
+        0,
+        vec![false, true],
+        vec![
+            vec![Transition::single_symbol(Zero, 0), Transition::empty(1)],
+            vec![Transition::single_symbol(One, 1)],
+        ]
+    ).unwrap();
+    let accepted_words = [vec![], vec![One], vec![Zero, Zero], vec![Zero, One, One, One]];
+    for word in accepted_words {
+        assert!(automaton.accepted(&word[..]));
+    }
+    let unaccepted_words = [vec![One, Zero, One], vec![Zero, One, Zero]];
+    for word in unaccepted_words {
+        assert!(!automaton.accepted(&word[..]));
+    }
+}
