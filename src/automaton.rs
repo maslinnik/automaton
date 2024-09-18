@@ -87,3 +87,6 @@ impl<S: Symbol> Automaton<S> for DFA<S> {
             })
     }
 }
+
+#[cfg(test)]
+mod tests;
