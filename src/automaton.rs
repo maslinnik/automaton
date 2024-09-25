@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub trait Symbol: PartialEq + Clone + 'static {}
 
@@ -101,11 +101,11 @@ pub struct NFA<S: Symbol> {
     size: usize,
     initial: usize,
     accepting: Vec<bool>,
-    transitions: Vec<Vec<Transition<S>>>,
+    transitions: Vec<Vec<(Option<S>, usize)>>,
 }
 
 impl<S: Symbol> NFA<S> {
-    pub fn new(initial: usize, accepting: Vec<bool>, transitions: Vec<Vec<Transition<S>>>) -> Result<NFA<S>, &'static str> {
+    pub fn new(initial: usize, accepting: Vec<bool>, transitions: Vec<Vec<(Option<S>, usize)>>) -> Result<NFA<S>, &'static str> {
         let size = accepting.len();
         if transitions.len() != size {
             return Err("size mismatch");
@@ -114,7 +114,7 @@ impl<S: Symbol> NFA<S> {
             return Err("initial state index out of bounds");
         }
         for current_transitions in &transitions {
-            if current_transitions.iter().any(|transition| transition.next_state >= size) {
+            if current_transitions.iter().any(|(symbol, next_state)| *next_state >= size) {
                 return Err("transition state index out of bounds");
             }
         }
@@ -132,7 +132,15 @@ impl<S: Symbol> Automaton<S> for NFA<S> {
     }
 
     fn transitions(&self, state: usize) -> impl Iterator<Item=Transition<S>> {
-        self.transitions[state].clone().into_iter()
+        self.transitions[state]
+            .iter()
+            .map(|(symbol_option, next_state)| {
+                if let Some(symbol) = symbol_option {
+                    Transition::single_symbol(symbol.clone(), *next_state)
+                } else {
+                    Transition::empty(*next_state)
+                }
+            })
     }
 }
 

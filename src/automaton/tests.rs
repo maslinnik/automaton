@@ -30,8 +30,8 @@ fn test_nfa() {
         0,
         vec![false, true],
         vec![
-            vec![Transition::single_symbol('a', 0), Transition::empty(1)],
-            vec![Transition::single_symbol('b', 1)],
+            vec![(Some('a'), 0), (None, 1)],
+            vec![(Some('b'), 1)],
         ]
     ).unwrap();
     let accepted_words = ["", "b", "aa", "abbb"];
@@ -61,8 +61,8 @@ fn test_nfa_with_enum() {
         0,
         vec![false, true],
         vec![
-            vec![Transition::single_symbol(Zero, 0), Transition::empty(1)],
-            vec![Transition::single_symbol(One, 1)],
+            vec![(Some(Zero), 0), (None, 1)],
+            vec![(Some(One), 1)],
         ]
     ).unwrap();
     let accepted_words = [vec![], vec![One], vec![Zero, Zero], vec![Zero, One, One, One]];
