@@ -8,10 +8,10 @@ fn test_dfa() {
         0,
         vec![false, true],
         vec![
-            HashMap::from([('a', 0), ('b', 1)]),
-            HashMap::from([('c', 1)])
+            vec![Transition::single_symbol('a', 0), Transition::single_symbol('b', 1)],
+            vec![Transition::single_symbol('c', 1)]
         ]
-    ).unwrap();
+    );
     let accepted_words = ["abc", "b", "aaab", "bc"];
     for word in accepted_words {
         let chars: Vec<char> = word.chars().collect();
@@ -30,10 +30,10 @@ fn test_nfa() {
         0,
         vec![false, true],
         vec![
-            vec![(Some('a'), 0), (None, 1)],
-            vec![(Some('b'), 1)],
+            vec![Transition::single_symbol('a', 0), Transition::empty(1)],
+            vec![Transition::single_symbol('b', 1)]
         ]
-    ).unwrap();
+    );
     let accepted_words = ["", "b", "aa", "abbb"];
     for word in accepted_words {
         let chars: Vec<char> = word.chars().collect();
@@ -46,7 +46,7 @@ fn test_nfa() {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 enum Binary {
     Zero,
     One
@@ -61,10 +61,10 @@ fn test_nfa_with_enum() {
         0,
         vec![false, true],
         vec![
-            vec![(Some(Zero), 0), (None, 1)],
-            vec![(Some(One), 1)],
+            vec![Transition::single_symbol(Zero, 0), Transition::empty(1)],
+            vec![Transition::single_symbol(One, 1)]
         ]
-    ).unwrap();
+    );
     let accepted_words = [vec![], vec![One], vec![Zero, Zero], vec![Zero, One, One, One]];
     for word in accepted_words {
         assert!(automaton.accepted(&word[..]));
