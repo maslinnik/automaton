@@ -6,28 +6,27 @@ pub trait Symbol: Eq + Clone + Hash + 'static {}
 #[derive(Clone)]
 pub struct Transition<S: Symbol> {
     next_state: usize,
-    symbols: Vec<S>,
+    symbol: Option<S>,
 }
 
 impl<S: Symbol> Transition<S> {
     fn empty(next_state: usize) -> Transition<S> {
-        Transition { next_state, symbols: vec![] }
+        Transition { next_state, symbol: None }
     }
 
     fn single_symbol(symbol: S, next_state: usize) -> Transition<S> {
-        Transition { next_state, symbols: vec![symbol] }
-    }
-
-    fn multiple_symbols(symbols: Vec<S>, next_state: usize) -> Transition<S> {
-        Transition { next_state, symbols }
+        Transition { next_state, symbol: Some(symbol) }
     }
 
     fn next<'a>(&self, word: &'a [S]) -> Option<(usize, &'a [S])> {
-        let len = self.symbols.len();
-        if word.len() >= len && &word[..len] == self.symbols {
-            Some((self.next_state, &word[len..]))
+        if let Some(symbol) = &self.symbol {
+            if word.len() >= 1 && &word[0] == symbol {
+                return Some((self.next_state, &word[1..]))
+            } else {
+                return None
+            }
         } else {
-            None
+            return Some((self.next_state, word))
         }
     }
 }
@@ -79,16 +78,14 @@ impl<S: Symbol> Automaton<S> for DFA<S> {
                 if transition.next_state >= size {
                     panic!("transition state index out of bounds");
                 }
-                if transition.symbols.len() != 1 {
-                    panic!("cannot construct DFA with non-single-symbol transitions");
+                if let Some(symbol) = &transition.symbol {
+                    if used_symbols.contains(symbol) {
+                        panic!("multiple transitions with same symbol");
+                    }
+                    used_symbols.insert(symbol);
+                } else {
+                    panic!("cannot construct DFA with epsilon transitions");
                 }
-                if used_symbols.contains(&transition.symbols[0]) {
-                    panic!("multiple transitions with same symbol");
-                }
-                used_symbols.insert(&transition.symbols[0]);
-            }
-            if current_transitions.iter().any(|transition| transition.next_state >= size) {
-                panic!("transition state index out of bounds");
             }
         }
         let dfa_transitions = transitions
@@ -97,7 +94,7 @@ impl<S: Symbol> Automaton<S> for DFA<S> {
                 HashMap::from_iter(arr
                     .into_iter()
                     .map(|transition| {
-                        (transition.symbols[0].clone(), transition.next_state)
+                        (transition.symbol.expect("should have panicked"), transition.next_state)
                     }))
             })
             .collect();
@@ -141,20 +138,13 @@ impl<S: Symbol> Automaton<S> for NFA<S> {
             if current_transitions.iter().any(|transition| transition.next_state >= size) {
                 panic!("transition state index out of bounds");
             }
-            if current_transitions.iter().any(|transition| transition.symbols.len() > 1) {
-                panic!("cannot construct NFA with multi-symbol transitions");
-            }
         }
         let nfa_transitions = transitions
             .into_iter()
             .map(|arr| {
                 arr.into_iter()
                     .map(|transition| {
-                        if transition.symbols.len() == 0 {
-                            (None, transition.next_state)
-                        } else {
-                            (Some(transition.symbols[0].clone()), transition.next_state)
-                        }
+                        (transition.symbol, transition.next_state)
                     })
                     .collect()
             })
