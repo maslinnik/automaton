@@ -57,14 +57,14 @@ pub trait Automaton<S: Symbol> {
     }
 }
 
-pub struct DFA<S: Symbol> {
+pub struct Dfa<S: Symbol> {
     size: usize,
     initial: usize,
     accepting: Vec<bool>,
     transitions: Vec<HashMap<S, usize>>,
 }
 
-impl<S: Symbol> Automaton<S> for DFA<S> {
+impl<S: Symbol> Automaton<S> for Dfa<S> {
     fn new(initial: usize, accepting: Vec<bool>, transitions: Vec<Vec<Transition<S>>>) -> Self {
         let size = accepting.len();
         if transitions.len() != size {
@@ -85,7 +85,7 @@ impl<S: Symbol> Automaton<S> for DFA<S> {
                     }
                     used_symbols.insert(symbol);
                 } else {
-                    panic!("cannot construct DFA with epsilon transitions");
+                    panic!("cannot construct Dfa with epsilon transitions");
                 }
             }
         }
@@ -99,7 +99,7 @@ impl<S: Symbol> Automaton<S> for DFA<S> {
                     }))
             })
             .collect();
-        DFA { size, initial, accepting, transitions: dfa_transitions }
+        Dfa { size, initial, accepting, transitions: dfa_transitions }
     }
 
     fn initial(&self) -> usize {
@@ -129,14 +129,14 @@ impl<S: Symbol> Automaton<S> for DFA<S> {
     }
 }
 
-pub struct NFA<S: Symbol> {
+pub struct Nfa<S: Symbol> {
     size: usize,
     initial: usize,
     accepting: Vec<bool>,
     transitions: Vec<Vec<(Option<S>, usize)>>,
 }
 
-impl<S: Symbol> Automaton<S> for NFA<S> {
+impl<S: Symbol> Automaton<S> for Nfa<S> {
     fn new(initial: usize, accepting: Vec<bool>, transitions: Vec<Vec<Transition<S>>>) -> Self {
         let size = accepting.len();
         if transitions.len() != size {
@@ -160,7 +160,7 @@ impl<S: Symbol> Automaton<S> for NFA<S> {
                     .collect()
             })
             .collect();
-        NFA { size, initial, accepting, transitions: nfa_transitions }
+        Nfa { size, initial, accepting, transitions: nfa_transitions }
     }
 
     fn initial(&self) -> usize {
@@ -185,14 +185,14 @@ impl<S: Symbol> Automaton<S> for NFA<S> {
     }
 }
 
-pub struct SingleSymbolNFA<S: Symbol> {
+pub struct SingleSymbolNfa<S: Symbol> {
     size: usize,
     initial: usize,
     accepting: Vec<bool>,
     transitions: Vec<HashMap<S, HashSet<usize>>>
 }
 
-impl<S: Symbol> Automaton<S> for SingleSymbolNFA<S> {
+impl<S: Symbol> Automaton<S> for SingleSymbolNfa<S> {
     fn new(initial: usize, accepting: Vec<bool>, transitions: Vec<Vec<Transition<S>>>) -> Self {
         let size = accepting.len();
         if transitions.len() != size {
@@ -210,11 +210,11 @@ impl<S: Symbol> Automaton<S> for SingleSymbolNFA<S> {
                 if let Some(symbol) = &transition.symbol {
                     ss_nfa_transitions[state].entry(symbol.clone()).or_default().insert(transition.next_state);
                 } else {
-                    panic!("cannot construct single-symbol NFA with epsilon transitions");
+                    panic!("cannot construct single-symbol Nfa with epsilon transitions");
                 }
             }
         }
-        SingleSymbolNFA { size, initial, accepting, transitions: ss_nfa_transitions }
+        SingleSymbolNfa { size, initial, accepting, transitions: ss_nfa_transitions }
     }
 
     fn initial(&self) -> usize {
@@ -238,8 +238,8 @@ impl<S: Symbol> Automaton<S> for SingleSymbolNFA<S> {
     }
 }
 
-impl<S: Symbol> SingleSymbolNFA<S> {
-    pub fn from_nfa(nfa: &NFA<S>) -> SingleSymbolNFA<S> {
+impl<S: Symbol> SingleSymbolNfa<S> {
+    pub fn from_nfa(nfa: &Nfa<S>) -> SingleSymbolNfa<S> {
         let (transitions, accepting) = (0..nfa.size)
             .into_iter()
             .map(|state| {
@@ -260,7 +260,7 @@ impl<S: Symbol> SingleSymbolNFA<S> {
                 (transitions, accepting)
             })
             .unzip();
-        SingleSymbolNFA { size: nfa.size, initial: nfa.initial, accepting, transitions }
+        SingleSymbolNfa { size: nfa.size, initial: nfa.initial, accepting, transitions }
     }
 }
 

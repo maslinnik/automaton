@@ -4,7 +4,7 @@ impl Symbol for char {}
 
 #[test]
 fn test_dfa() {
-    let automaton = DFA::new(
+    let automaton = Dfa::new(
         0,
         vec![false, true],
         vec![
@@ -26,7 +26,7 @@ fn test_dfa() {
 
 #[test]
 fn test_nfa() {
-    let automaton = NFA::new(
+    let automaton = Nfa::new(
         0,
         vec![false, true],
         vec![
@@ -57,7 +57,7 @@ impl Symbol for Binary {}
 #[test]
 fn test_nfa_with_enum() {
     use Binary::*;
-    let automaton = NFA::new(
+    let automaton = Nfa::new(
         0,
         vec![false, true],
         vec![
@@ -96,7 +96,7 @@ fn stress_automaton_equivalence(one: &dyn Automaton<char>, two: &dyn Automaton<c
 
 #[test]
 fn test_ss_nfa() {
-    let nfa = NFA::new(
+    let nfa = Nfa::new(
         0,
         vec![false, true, false, false, false, false],
         vec![
@@ -108,6 +108,6 @@ fn test_ss_nfa() {
             vec![Transition::single_symbol('b', 4)]
         ]
     );
-    let ss_nfa = SingleSymbolNFA::from_nfa(&nfa);
+    let ss_nfa = SingleSymbolNfa::from_nfa(&nfa);
     stress_automaton_equivalence(&nfa, &ss_nfa, vec!['a', 'b'], 12);
 }
