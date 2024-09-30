@@ -74,3 +74,40 @@ fn test_nfa_with_enum() {
         assert!(!automaton.accepted(&word[..]));
     }
 }
+
+fn stress_automaton_equivalence(one: &dyn Automaton<char>, two: &dyn Automaton<char>, chars: Vec<char>, max_len: usize) {
+    assert_eq!(one.accepted(&[]), two.accepted(&[]));
+    let mut current_words: Vec<Vec<char>> = vec![vec![]];
+    for _ in 1..=max_len {
+        current_words = current_words
+            .into_iter()
+            .map(|word| {
+                chars.iter().map(move |c| {
+                    vec![word.clone(), vec![c.clone()]].concat()
+                })
+            })
+            .flatten()
+            .collect();
+        for word in &current_words {
+            assert_eq!(one.accepted(&word[..]), two.accepted(&word[..]));
+        }
+    }
+}
+
+#[test]
+fn test_ss_nfa() {
+    let nfa = NFA::new(
+        0,
+        vec![false, true, false, false, false, false],
+        vec![
+            vec![Transition::single_symbol('a', 1)],
+            vec![Transition::empty(2)],
+            vec![Transition::single_symbol('b', 3), Transition::single_symbol('a', 4)],
+            vec![Transition::single_symbol('a', 2)],
+            vec![Transition::single_symbol('a', 5), Transition::empty(1)],
+            vec![Transition::single_symbol('b', 4)]
+        ]
+    );
+    let ss_nfa = SingleSymbolNFA::from_nfa(&nfa);
+    stress_automaton_equivalence(&nfa, &ss_nfa, vec!['a', 'b'], 12);
+}
