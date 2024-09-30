@@ -264,5 +264,55 @@ impl<S: Symbol> SingleSymbolNfa<S> {
     }
 }
 
+impl<S: Symbol> Dfa<S> {
+    fn from_ss_nfa(ss_nfa: &SingleSymbolNfa<S>) -> Dfa<S> {
+        let mut visited_masks = HashMap::new();
+        let mut transitions = vec![];
+        let mut accepting = vec![];
+        let mut queue = VecDeque::new();
+        let initial_mask: Vec<_> = (0..ss_nfa.size).map(|state| state == ss_nfa.initial).collect();
+        visited_masks.insert(initial_mask.clone(), 0);
+        queue.push_back(initial_mask.clone());
+        while !queue.is_empty() {
+            let mask = queue.pop_front().expect("queue is not empty");
+            let states = mask.clone()
+                .into_iter()
+                .enumerate()
+                .filter(|(_, has)| *has)
+                .unzip::<usize, bool, Vec<_>, Vec<_>>().0;
+            accepting.push(states.iter().any(|state| ss_nfa.accepting(*state)));
+            let chars = states
+                .iter()
+                .map(|state| {
+                    ss_nfa.transitions[*state].iter().map(|(symbol, _)| symbol.clone())
+                })
+                .flatten();
+            transitions.push(HashMap::new());
+            for c in chars {
+                let mut next_mask = vec![false; ss_nfa.size];
+                states
+                    .iter()
+                    .for_each(|state| {
+                        if ss_nfa.transitions[*state].contains_key(&c) {
+                            ss_nfa.transitions[*state][&c].iter().for_each(|next_state| {
+                                next_mask[*next_state] = true;
+                            })
+                        }
+                    });
+                if !visited_masks.contains_key(&next_mask) {
+                    visited_masks.insert(next_mask.clone(), visited_masks.len());
+                    queue.push_back(next_mask.clone());
+                }
+                transitions[visited_masks[&mask]].insert(c, visited_masks[&next_mask]);
+            }
+        }
+        Dfa { size: visited_masks.len(), initial: 0, accepting, transitions }
+    }
+
+    fn from_nfa(nfa: &Nfa<S>) -> Dfa<S> {
+        Self::from_ss_nfa(&SingleSymbolNfa::from_nfa(&nfa))
+    }
+}
+
 #[cfg(test)]
 mod tests;

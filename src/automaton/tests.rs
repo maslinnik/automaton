@@ -95,7 +95,7 @@ fn stress_automaton_equivalence(one: &dyn Automaton<char>, two: &dyn Automaton<c
 }
 
 #[test]
-fn test_ss_nfa() {
+fn test_nfa_to_ss_nfa() {
     let nfa = Nfa::new(
         0,
         vec![false, true, false, false, false, false],
@@ -110,4 +110,21 @@ fn test_ss_nfa() {
     );
     let ss_nfa = SingleSymbolNfa::from_nfa(&nfa);
     stress_automaton_equivalence(&nfa, &ss_nfa, vec!['a', 'b'], 12);
+}
+
+#[test]
+fn test_nfa_to_dfa() {
+    let nfa = Nfa::new(
+        0,
+        vec![false, false, false, false, true],
+        vec![
+            vec![Transition::single_symbol('0', 0), Transition::single_symbol('1', 0), Transition::single_symbol('1', 1)],
+            vec![Transition::single_symbol('0', 2), Transition::single_symbol('1', 2)],
+            vec![Transition::single_symbol('0', 3), Transition::single_symbol('1', 3)],
+            vec![Transition::single_symbol('0', 4), Transition::single_symbol('1', 4)],
+            vec![]
+        ]
+    );
+    let dfa = Dfa::from_nfa(&nfa);
+    stress_automaton_equivalence(&nfa, &dfa, vec!['0', '1'], 10);
 }
