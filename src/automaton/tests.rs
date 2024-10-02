@@ -4,7 +4,8 @@ impl Symbol for char {}
 
 #[test]
 fn test_dfa() {
-    let automaton = Dfa::new(
+    let automaton = Automaton::new(
+        &['a', 'b', 'c'],
         0,
         vec![false, true],
         vec![
@@ -26,7 +27,8 @@ fn test_dfa() {
 
 #[test]
 fn test_nfa() {
-    let automaton = Nfa::new(
+    let automaton = Automaton::new(
+        &['a', 'b'],
         0,
         vec![false, true],
         vec![
@@ -57,7 +59,8 @@ impl Symbol for Binary {}
 #[test]
 fn test_nfa_with_enum() {
     use Binary::*;
-    let automaton = Nfa::new(
+    let automaton = Automaton::new(
+        &[Zero, One],
         0,
         vec![false, true],
         vec![
@@ -75,7 +78,7 @@ fn test_nfa_with_enum() {
     }
 }
 
-fn stress_automaton_equivalence(one: &dyn Automaton<char>, two: &dyn Automaton<char>, chars: Vec<char>, max_len: usize) {
+fn stress_automaton_equivalence(one: &Automaton<char>, two: &Automaton<char>, chars: Vec<char>, max_len: usize) {
     assert_eq!(one.accepted(&[]), two.accepted(&[]));
     let mut current_words: Vec<Vec<char>> = vec![vec![]];
     for _ in 1..=max_len {
@@ -96,7 +99,8 @@ fn stress_automaton_equivalence(one: &dyn Automaton<char>, two: &dyn Automaton<c
 
 #[test]
 fn test_nfa_to_ss_nfa() {
-    let nfa = Nfa::new(
+    let nfa = Automaton::new(
+        &['a', 'b'],
         0,
         vec![false, true, false, false, false, false],
         vec![
@@ -108,13 +112,15 @@ fn test_nfa_to_ss_nfa() {
             vec![Transition::single_symbol('b', 4)]
         ]
     );
-    let ss_nfa = SingleSymbolNfa::from_nfa(&nfa);
+    let ss_nfa = Automaton::single_symbol_nfa_from(&nfa);
+    assert!(ss_nfa.is_single_symbol());
     stress_automaton_equivalence(&nfa, &ss_nfa, vec!['a', 'b'], 12);
 }
 
 #[test]
 fn test_nfa_to_dfa() {
-    let nfa = Nfa::new(
+    let nfa = Automaton::new(
+        &['0', '1'],
         0,
         vec![false, false, false, false, true],
         vec![
@@ -125,6 +131,7 @@ fn test_nfa_to_dfa() {
             vec![]
         ]
     );
-    let dfa = Dfa::from_nfa(&nfa);
+    let dfa = Automaton::dfa_from(&nfa);
+    assert!(dfa.is_dfa());
     stress_automaton_equivalence(&nfa, &dfa, vec!['0', '1'], 10);
 }
