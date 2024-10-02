@@ -4,15 +4,13 @@ impl Symbol for char {}
 
 #[test]
 fn test_dfa() {
-    let automaton = Automaton::new(
-        &['a', 'b', 'c'],
-        0,
-        vec![false, true],
-        vec![
-            vec![Transition::single_symbol('a', 0), Transition::single_symbol('b', 1)],
-            vec![Transition::single_symbol('c', 1)]
-        ]
-    );
+    let mut automaton = Automaton::new(&['a', 'b', 'c'], 2);
+    automaton.set_initial(0);
+    automaton.add_symbol_transition(0, 0, 'a');
+    automaton.add_symbol_transition(0, 1, 'b');
+    automaton.add_symbol_transition(1, 1, 'c');
+    automaton.set_accepting(1, true);
+    assert!(automaton.is_dfa());
     let accepted_words = ["abc", "b", "aaab", "bc"];
     for word in accepted_words {
         let chars: Vec<char> = word.chars().collect();
@@ -27,15 +25,12 @@ fn test_dfa() {
 
 #[test]
 fn test_nfa() {
-    let automaton = Automaton::new(
-        &['a', 'b'],
-        0,
-        vec![false, true],
-        vec![
-            vec![Transition::single_symbol('a', 0), Transition::empty(1)],
-            vec![Transition::single_symbol('b', 1)]
-        ]
-    );
+    let mut automaton = Automaton::new(&['a', 'b'], 2);
+    automaton.set_initial(0);
+    automaton.add_symbol_transition(0, 0, 'a');
+    automaton.add_empty_transition(0, 1);
+    automaton.add_symbol_transition(1, 1, 'b');
+    automaton.set_accepting(1, true);
     let accepted_words = ["", "b", "aa", "abbb"];
     for word in accepted_words {
         let chars: Vec<char> = word.chars().collect();
@@ -59,15 +54,12 @@ impl Symbol for Binary {}
 #[test]
 fn test_nfa_with_enum() {
     use Binary::*;
-    let automaton = Automaton::new(
-        &[Zero, One],
-        0,
-        vec![false, true],
-        vec![
-            vec![Transition::single_symbol(Zero, 0), Transition::empty(1)],
-            vec![Transition::single_symbol(One, 1)]
-        ]
-    );
+    let mut automaton = Automaton::new(&[Zero, One], 2);
+    automaton.set_initial(0);
+    automaton.add_symbol_transition(0, 0, Zero);
+    automaton.add_empty_transition(0, 1);
+    automaton.add_symbol_transition(1, 1, One);
+    automaton.set_accepting(1, true);
     let accepted_words = [vec![], vec![One], vec![Zero, Zero], vec![Zero, One, One, One]];
     for word in accepted_words {
         assert!(automaton.accepted(&word[..]));
@@ -99,7 +91,7 @@ fn stress_automaton_equivalence(one: &Automaton<char>, two: &Automaton<char>, ch
 
 #[test]
 fn test_nfa_to_ss_nfa() {
-    let nfa = Automaton::new(
+    let nfa = Automaton::from(
         &['a', 'b'],
         0,
         vec![false, true, false, false, false, false],
@@ -119,7 +111,7 @@ fn test_nfa_to_ss_nfa() {
 
 #[test]
 fn test_nfa_to_dfa() {
-    let nfa = Automaton::new(
+    let nfa = Automaton::from(
         &['0', '1'],
         0,
         vec![false, false, false, false, true],

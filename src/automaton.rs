@@ -30,7 +30,11 @@ pub struct Automaton<S: Symbol> {
 }
 
 impl<S: Symbol> Automaton<S> {
-    fn new(alphabet: &'static [S], initial: usize, accepting: Vec<bool>, transitions: Vec<Vec<Transition<S>>>) -> Automaton<S> {
+    fn new(alphabet: &'static [S], size: usize) -> Automaton<S> {
+        Automaton::from(alphabet, 0, vec![false; size], vec![vec![]; size])
+    }
+
+    fn from(alphabet: &'static [S], initial: usize, accepting: Vec<bool>, transitions: Vec<Vec<Transition<S>>>) -> Automaton<S> {
         let size = accepting.len();
         if transitions.len() != size {
             panic!("size mismatch");
@@ -62,6 +66,10 @@ impl<S: Symbol> Automaton<S> {
         }
     }
 
+    fn size(&self) -> usize {
+        self.size
+    }
+
     fn alphabet(&self) -> &'static [S] {
         self.alphabet
     }
@@ -89,6 +97,41 @@ impl<S: Symbol> Automaton<S> {
         } else {
             &[]
         }
+    }
+
+    fn set_size(&mut self, new_size: usize) {
+        if new_size < self.size {
+            panic!("cannot set smaller size");
+        }
+        self.size = new_size;
+    }
+
+    fn set_initial(&mut self, new_initial: usize) {
+        if new_initial >= self.size {
+            panic!("new initial state index out of bounds");
+        }
+        self.initial = new_initial;
+    }
+
+    fn set_accepting(&mut self, state: usize, new_accepting: bool) {
+        if state >= self.size {
+            panic!("state index out of bounds");
+        }
+        self.accepting[state] = new_accepting;
+    }
+
+    fn add_empty_transition(&mut self, from: usize, to: usize) {
+        if from >= self.size || to >= self.size {
+            panic!("transition state index out of bounds");
+        }
+        self.transitions[from].entry(None).or_default().push(to);
+    }
+
+    fn add_symbol_transition(&mut self, from: usize, to: usize, symbol: S) {
+        if from >= self.size || to >= self.size {
+            panic!("transition state index out of bounds");
+        }
+        self.transitions[from].entry(Some(symbol)).or_default().push(to);
     }
 
     fn transitions(&self, state: usize) -> Vec<Transition<S>> {
@@ -194,7 +237,7 @@ impl<S: Symbol> Automaton<S> {
                     .collect::<Vec<_>>()
             })
             .collect();
-        Automaton::new(automaton.alphabet, automaton.initial, accepting, transitions)
+        Automaton::from(automaton.alphabet, automaton.initial, accepting, transitions)
     }
 
     fn dfa_from(automaton: &Automaton<S>) -> Automaton<S> {
@@ -236,7 +279,7 @@ impl<S: Symbol> Automaton<S> {
                 transitions[visited_masks[&mask]].push(Transition::single_symbol(c.clone(), visited_masks[&next_mask]));
             }
         }
-        Automaton::new(automaton.alphabet, automaton.initial, accepting, transitions)
+        Automaton::from(automaton.alphabet, automaton.initial, accepting, transitions)
     }
 }
 
