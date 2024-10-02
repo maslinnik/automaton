@@ -104,6 +104,8 @@ impl<S: Symbol> Automaton<S> {
             panic!("cannot set smaller size");
         }
         self.size = new_size;
+        self.accepting.resize(new_size, false);
+        self.transitions.resize(new_size, HashMap::default());
     }
 
     fn set_initial(&mut self, new_initial: usize) {
@@ -209,6 +211,15 @@ impl<S: Symbol> Automaton<S> {
             })
     }
 
+    fn is_complete_dfa(&self) -> bool {
+        self.is_single_symbol() &&
+            (0..self.size)
+                .into_iter()
+                .all(|state| {
+                    self.alphabet().iter().all(|c| self.symbol_transitions(state, c).len() == 1)
+                })
+    }
+
     fn single_symbol_nfa_from(automaton: &Automaton<S>) -> Automaton<S> {
         let accepting = (0..automaton.size)
             .into_iter()
@@ -280,6 +291,22 @@ impl<S: Symbol> Automaton<S> {
             }
         }
         Automaton::from(automaton.alphabet, automaton.initial, accepting, transitions)
+    }
+
+    fn complete_dfa_from(automaton: &Automaton<S>) -> Automaton<S> {
+        let mut dfa = Automaton::dfa_from(automaton);
+        if !dfa.is_complete_dfa() {
+            dfa.set_size(dfa.size() + 1);
+            let halting_state = dfa.size() - 1;
+            for state in 0..dfa.size() {
+                for c in dfa.alphabet {
+                    if dfa.symbol_transitions(state, c).is_empty() {
+                        dfa.add_symbol_transition(state, halting_state, c.clone());
+                    }
+                }
+            }
+        }
+        dfa
     }
 }
 

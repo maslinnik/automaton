@@ -127,3 +127,22 @@ fn test_nfa_to_dfa() {
     assert!(dfa.is_dfa());
     stress_automaton_equivalence(&nfa, &dfa, vec!['0', '1'], 10);
 }
+
+#[test]
+fn test_nfa_to_complete_dfa() {
+    let nfa = Automaton::from(
+        &['0', '1'],
+        0,
+        vec![false, false, false, false, true],
+        vec![
+            vec![Transition::single_symbol('0', 0), Transition::single_symbol('1', 0), Transition::single_symbol('1', 1)],
+            vec![Transition::single_symbol('0', 2), Transition::single_symbol('1', 2)],
+            vec![Transition::single_symbol('0', 3), Transition::single_symbol('1', 3)],
+            vec![Transition::single_symbol('0', 4), Transition::single_symbol('1', 4)],
+            vec![]
+        ]
+    );
+    let complete_dfa = Automaton::complete_dfa_from(&nfa);
+    assert!(complete_dfa.is_complete_dfa());
+    stress_automaton_equivalence(&nfa, &complete_dfa, vec!['0', '1'], 10);
+}
