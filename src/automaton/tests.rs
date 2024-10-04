@@ -70,14 +70,15 @@ fn test_nfa_with_enum() {
     }
 }
 
-fn stress_automaton_equivalence(one: &Automaton<char>, two: &Automaton<char>, chars: Vec<char>, max_len: usize) {
+fn stress_automaton_equivalence(one: &Automaton<char>, two: &Automaton<char>, max_len: usize) {
+    assert_eq!(one.alphabet(), two.alphabet());
     assert_eq!(one.accepted(&[]), two.accepted(&[]));
     let mut current_words: Vec<Vec<char>> = vec![vec![]];
     for _ in 1..=max_len {
         current_words = current_words
             .into_iter()
             .map(|word| {
-                chars.iter().map(move |c| {
+                one.alphabet().iter().map(move |c| {
                     vec![word.clone(), vec![c.clone()]].concat()
                 })
             })
@@ -106,7 +107,7 @@ fn test_nfa_to_ss_nfa() {
     );
     let ss_nfa = Automaton::single_symbol_nfa_from(&nfa);
     assert!(ss_nfa.is_single_symbol());
-    stress_automaton_equivalence(&nfa, &ss_nfa, vec!['a', 'b'], 12);
+    stress_automaton_equivalence(&nfa, &ss_nfa, 12);
 }
 
 #[test]
@@ -125,7 +126,7 @@ fn test_nfa_to_dfa() {
     );
     let dfa = Automaton::dfa_from(&nfa);
     assert!(dfa.is_dfa());
-    stress_automaton_equivalence(&nfa, &dfa, vec!['0', '1'], 10);
+    stress_automaton_equivalence(&nfa, &dfa, 10);
 }
 
 #[test]
@@ -144,5 +145,25 @@ fn test_nfa_to_complete_dfa() {
     );
     let complete_dfa = Automaton::complete_dfa_from(&nfa);
     assert!(complete_dfa.is_complete_dfa());
-    stress_automaton_equivalence(&nfa, &complete_dfa, vec!['0', '1'], 10);
+    stress_automaton_equivalence(&nfa, &complete_dfa, 10);
+}
+
+#[test]
+fn test_dfa_to_minimal_complete_dfa() {
+    let mut dfa = Automaton::new(&['a', 'b'], 4);
+    dfa.add_symbol_transition(0, 3, 'a');
+    dfa.add_symbol_transition(0, 1, 'b');
+    dfa.add_symbol_transition(1, 1, 'a');
+    dfa.add_symbol_transition(1, 2, 'b');
+    dfa.add_symbol_transition(2, 3, 'a');
+    dfa.add_symbol_transition(2, 1, 'b');
+    dfa.add_symbol_transition(3, 3, 'a');
+    dfa.add_symbol_transition(3, 3, 'b');
+    dfa.set_initial(0);
+    dfa.set_accepting(3, true);
+    assert!(dfa.is_complete_dfa());
+    let mcdfa = Automaton::minimal_complete_dfa_from(&dfa);
+    assert!(mcdfa.is_complete_dfa());
+    assert_eq!(mcdfa.size(), 3);
+    stress_automaton_equivalence(&dfa, &mcdfa, 10);
 }

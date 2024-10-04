@@ -20,7 +20,7 @@ impl<S: Symbol> Transition<S> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Automaton<S: Symbol> {
     alphabet: &'static [S],
     size: usize,
@@ -178,6 +178,26 @@ impl<S: Symbol> Automaton<S> {
         }
     }
 
+    fn reached(&self, state: usize) -> Vec<usize> {
+        let mut visited: HashSet<usize> = HashSet::from([state]);
+        let mut queue: VecDeque<usize> = VecDeque::from([state]);
+        loop {
+            if let Some(current_state) = queue.pop_front() {
+                self.transitions(current_state)
+                    .iter()
+                    .for_each(|Transition { next_state, .. }| {
+                        if !visited.contains(next_state) {
+                            visited.insert(*next_state);
+                            queue.push_back(*next_state);
+                        }
+                    })
+            } else {
+                break;
+            }
+        }
+        visited.into_iter().collect()
+    }
+
     fn accepted_from_state(&self, state: usize, word: &[S]) -> bool {
         if word.is_empty() {
             self.reached_by_epsilon(state).into_iter().any(|reached_state| {
@@ -197,14 +217,14 @@ impl<S: Symbol> Automaton<S> {
     }
 
     fn is_single_symbol(&self) -> bool {
-        (0..self.size)
+        (0..self.size())
             .into_iter()
             .all(|state| self.empty_transitions(state).is_empty())
     }
 
     fn is_dfa(&self) -> bool {
         self.is_single_symbol() &&
-            (0..self.size)
+            (0..self.size())
             .into_iter()
             .all(|state| {
                 self.alphabet().iter().all(|c| self.symbol_transitions(state, c).len() <= 1)
@@ -213,7 +233,7 @@ impl<S: Symbol> Automaton<S> {
 
     fn is_complete_dfa(&self) -> bool {
         self.is_single_symbol() &&
-            (0..self.size)
+            (0..self.size())
                 .into_iter()
                 .all(|state| {
                     self.alphabet().iter().all(|c| self.symbol_transitions(state, c).len() == 1)
@@ -221,7 +241,10 @@ impl<S: Symbol> Automaton<S> {
     }
 
     fn single_symbol_nfa_from(automaton: &Automaton<S>) -> Automaton<S> {
-        let accepting = (0..automaton.size)
+        if automaton.is_single_symbol() {
+            return automaton.clone();
+        }
+        let accepting = (0..automaton.size())
             .into_iter()
             .map(|state| {
                 automaton.reached_by_epsilon(state)
@@ -231,7 +254,7 @@ impl<S: Symbol> Automaton<S> {
                     })
             })
             .collect();
-        let transitions = (0..automaton.size)
+        let transitions = (0..automaton.size())
             .into_iter()
             .map(|state| {
                 automaton.reached_by_epsilon(state)
@@ -248,16 +271,19 @@ impl<S: Symbol> Automaton<S> {
                     .collect::<Vec<_>>()
             })
             .collect();
-        Automaton::from(automaton.alphabet, automaton.initial, accepting, transitions)
+        Automaton::from(automaton.alphabet(), automaton.initial(), accepting, transitions)
     }
 
     fn dfa_from(automaton: &Automaton<S>) -> Automaton<S> {
+        if automaton.is_dfa() {
+            return automaton.clone();
+        }
         let ss_nfa = Automaton::single_symbol_nfa_from(automaton);
         let mut visited_masks = HashMap::new();
         let mut transitions = vec![];
         let mut accepting = vec![];
         let mut queue = VecDeque::new();
-        let initial_mask: Vec<_> = (0..ss_nfa.size).map(|state| state == ss_nfa.initial).collect();
+        let initial_mask: Vec<_> = (0..ss_nfa.size()).map(|state| state == ss_nfa.initial()).collect();
         visited_masks.insert(initial_mask.clone(), 0);
         queue.push_back(initial_mask.clone());
         while !queue.is_empty() {
@@ -269,8 +295,8 @@ impl<S: Symbol> Automaton<S> {
                 .unzip::<usize, bool, Vec<_>, Vec<_>>().0;
             accepting.push(states.iter().any(|state| ss_nfa.accepting(*state)));
             transitions.push(vec![]);
-            for c in ss_nfa.alphabet {
-                let mut next_mask = vec![false; ss_nfa.size];
+            for c in ss_nfa.alphabet() {
+                let mut next_mask = vec![false; ss_nfa.size()];
                 states
                     .iter()
                     .for_each(|state| {
@@ -290,16 +316,19 @@ impl<S: Symbol> Automaton<S> {
                 transitions[visited_masks[&mask]].push(Transition::single_symbol(c.clone(), visited_masks[&next_mask]));
             }
         }
-        Automaton::from(automaton.alphabet, automaton.initial, accepting, transitions)
+        Automaton::from(automaton.alphabet(), automaton.initial(), accepting, transitions)
     }
 
     fn complete_dfa_from(automaton: &Automaton<S>) -> Automaton<S> {
+        if automaton.is_complete_dfa() {
+            return automaton.clone();
+        }
         let mut dfa = Automaton::dfa_from(automaton);
         if !dfa.is_complete_dfa() {
             dfa.set_size(dfa.size() + 1);
             let halting_state = dfa.size() - 1;
             for state in 0..dfa.size() {
-                for c in dfa.alphabet {
+                for c in dfa.alphabet() {
                     if dfa.symbol_transitions(state, c).is_empty() {
                         dfa.add_symbol_transition(state, halting_state, c.clone());
                     }
@@ -307,6 +336,61 @@ impl<S: Symbol> Automaton<S> {
             }
         }
         dfa
+    }
+
+    fn minimal_complete_dfa_from(automaton: &Automaton<S>) -> Automaton<S> {
+        let cdfa = Automaton::complete_dfa_from(automaton);
+        let reached_from_initial = cdfa.reached(cdfa.initial());
+        let mut classes = vec![
+            HashSet::from_iter(reached_from_initial.clone().into_iter().filter(|state| cdfa.accepting(*state))),
+            HashSet::from_iter(reached_from_initial.clone().into_iter().filter(|state| !cdfa.accepting(*state)))
+        ];
+        for _len in 1..cdfa.size() {
+            for c in cdfa.alphabet() {
+                classes = classes.into_iter()
+                    .map(|class| {
+                        let mut split_classes: HashMap<usize, HashSet<usize>> = HashMap::new();
+                        class
+                            .into_iter()
+                            .for_each(|state| {
+                                split_classes.entry(cdfa.symbol_transitions(state, c)[0]).or_default().insert(state);
+                            });
+                        split_classes.into_values().collect::<Vec<_>>()
+                    })
+                    .flatten()
+                    .collect();
+            }
+        }
+        classes.sort_by_cached_key(|class| class.clone().into_iter().min().expect("all classes are non-empty"));
+        let mut class_index = vec![0; cdfa.size()];
+        classes.iter()
+            .enumerate()
+            .for_each(|(index, class)| {
+                class.iter()
+                    .for_each(|state| { class_index[*state] = index; });
+            });
+        let accepting = classes.iter()
+            .map(|class| {
+                class.iter()
+                    .any(|state| cdfa.accepting(*state))
+            })
+            .collect();
+        let transitions = classes.iter()
+            .map(|class| {
+                let state = *class.iter().next().expect("all classes are non-empty");
+                cdfa.transitions(state).into_iter()
+                    .map(|Transition { next_state, symbol }| {
+                        Transition { next_state: class_index[next_state], symbol }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        Automaton::from(
+            cdfa.alphabet(),
+            class_index[cdfa.initial()],
+            accepting,
+            transitions
+        )
     }
 }
 
