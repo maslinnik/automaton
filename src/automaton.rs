@@ -210,6 +210,13 @@ impl<S: Symbol> Automaton<S> {
         self.transitions[from].entry(Some(symbol)).or_default().push(to);
     }
 
+    fn add_transition(&mut self, from: usize, to: usize, symbol: Option<S>) {
+        if from >= self.size || to >= self.size {
+            panic!("transition state index out of bounds");
+        }
+        self.transitions[from].entry(symbol).or_default().push(to);
+    }
+
     fn transitions(&self, state: usize) -> Vec<Transition<S>> {
         vec![
             self.alphabet()
@@ -531,6 +538,82 @@ impl<S: Symbol> Automaton<S> {
                           regex_transitions[self.initial()][&self.size()].clone())
         } else {
             regex_transitions[self.initial()][&self.size()].clone()
+        }
+    }
+
+    fn from_regex(alphabet: &'static [S], regex: &Regex<S>) -> Automaton<S> {
+        return match regex {
+            Regex::String(vec) => {
+                let mut result = Automaton::new(alphabet, vec.len() + 1);
+                result.set_initial(0);
+                result.set_accepting(vec.len(), true);
+                for (i, c) in vec.iter().enumerate() {
+                    result.add_symbol_transition(i, i + 1, c.clone());
+                }
+                result
+            }
+            Regex::Concat(lhs, rhs) => {
+                let lhs_automaton = Automaton::from_regex(alphabet, lhs);
+                let rhs_automaton = Automaton::from_regex(alphabet, rhs);
+                let mut result = Automaton::new(alphabet, lhs_automaton.size() + rhs_automaton.size());
+                result.set_initial(lhs_automaton.initial());
+                for state in 0..lhs_automaton.size() {
+                    for transition in lhs_automaton.transitions(state) {
+                        result.add_transition(state, transition.next_state, transition.symbol);
+                    }
+                    if lhs_automaton.accepting(state) {
+                        result.add_empty_transition(state, rhs_automaton.initial() + lhs_automaton.size());
+                    }
+                }
+                for state in 0..rhs_automaton.size() {
+                    for transition in rhs_automaton.transitions(state) {
+                        result.add_transition(state + lhs_automaton.size(),
+                                              transition.next_state + lhs_automaton.size(),
+                                              transition.symbol);
+                    }
+                    if rhs_automaton.accepting(state) {
+                        result.set_accepting(state + lhs_automaton.size(), true);
+                    }
+                }
+                result
+            }
+            Regex::Union(lhs, rhs) => {
+                let lhs_automaton = Automaton::from_regex(alphabet, lhs);
+                let rhs_automaton = Automaton::from_regex(alphabet, rhs);
+                let mut result = Automaton::new(alphabet, 1 + lhs_automaton.size() + rhs_automaton.size());
+                result.set_initial(0);
+                result.add_empty_transition(0, lhs_automaton.initial() + 1);
+                result.add_empty_transition(0, rhs_automaton.initial() + lhs_automaton.size() + 1);
+                for state in 0..lhs_automaton.size() {
+                    for transition in lhs_automaton.transitions(state) {
+                        result.add_transition(state + 1, transition.next_state + 1, transition.symbol);
+                    }
+                    if lhs_automaton.accepting(state) {
+                        result.set_accepting(state + 1, true);
+                    }
+                }
+                for state in 0..rhs_automaton.size() {
+                    for transition in rhs_automaton.transitions(state) {
+                        result.add_transition(state + lhs_automaton.size() + 1,
+                                              transition.next_state + lhs_automaton.size() + 1,
+                                              transition.symbol);
+                    }
+                    if rhs_automaton.accepting(state) {
+                        result.set_accepting(state + lhs_automaton.size() + 1, true);
+                    }
+                }
+                result
+            }
+            Regex::KleeneStar(regex) => {
+                let mut result = Automaton::from_regex(alphabet, regex);
+                result.set_accepting(result.initial(), true);
+                for state in 0..result.size() {
+                    if result.accepting(state) {
+                        result.add_empty_transition(state, result.initial());
+                    }
+                }
+                result
+            }
         }
     }
 }
