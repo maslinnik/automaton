@@ -1,3 +1,6 @@
+use automaton::*;
+use automaton::char_automaton::*;
+
 fn main() {
     let nfa = Automaton::from(
         &['0', '1'],

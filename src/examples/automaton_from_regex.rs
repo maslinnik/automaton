@@ -1,3 +1,6 @@
+use automaton::*;
+use automaton::char_automaton::*;
+
 fn main() {
     let automaton = Automaton::from_regex(&['a', 'b'], &parse_regex_from_string("a*b|ababa"));
     assert!(accepted_str(&automaton, "ababa"));

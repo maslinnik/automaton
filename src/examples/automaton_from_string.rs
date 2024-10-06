@@ -1,3 +1,6 @@
+use automaton::*;
+use automaton::char_automaton::*;
+
 fn main() {
     let automaton = automaton_from_string(
         &['a', 'b'],

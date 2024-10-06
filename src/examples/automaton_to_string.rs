@@ -1,3 +1,6 @@
+use automaton::*;
+use automaton::char_automaton::*;
+
 fn main() {
     let mut automaton = Automaton::new(&['α', 'β', 'γ'], 3);
     automaton.set_initial(0);
