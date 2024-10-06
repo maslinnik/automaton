@@ -1,8 +1,82 @@
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt;
+use std::fmt::Formatter;
 use std::hash::Hash;
 use smallvec::{SmallVec, smallvec};
 
 pub trait Symbol: Eq + Clone + Hash + 'static {}
+
+#[derive(Clone)]
+pub enum Regex<S: Symbol> {
+    String(Vec<S>),
+    Concat(Box<Regex<S>>, Box<Regex<S>>),
+    Union(Box<Regex<S>>, Box<Regex<S>>),
+    KleeneStar(Box<Regex<S>>)
+}
+
+impl<S: Symbol> Regex<S> {
+    fn concat(lhs: Regex<S>, rhs: Regex<S>) -> Regex<S> {
+        use Regex::*;
+        if let String(lhs_vec) = &lhs {
+            if lhs_vec.is_empty() {
+                return rhs;
+            }
+        }
+        if let String(rhs_vec) = &rhs {
+            if rhs_vec.is_empty() {
+                return lhs;
+            }
+        }
+        if let String(lhs_vec) = &lhs {
+            if let String(rhs_vec) = &rhs {
+                return String(vec![lhs_vec.clone(), rhs_vec.clone()].concat());
+            }
+        }
+        Concat(Box::new(lhs), Box::new(rhs))
+    }
+
+    fn union(lhs: Regex<S>, rhs: Regex<S>) -> Regex<S> {
+        Regex::Union(Box::new(lhs), Box::new(rhs))
+    }
+
+    fn kleene_star(regex: Regex<S>) -> Regex<S> {
+        use Regex::*;
+        if let String(vec) = &regex {
+            if vec.is_empty() {
+                return String(vec![]);
+            }
+        }
+        KleeneStar(Box::new(regex))
+    }
+}
+
+impl<S: Symbol> Default for Regex<S> {
+    fn default() -> Self {
+        Regex::String(vec![])
+    }
+}
+
+impl<S: Symbol + fmt::Display> fmt::Display for Regex<S> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Regex::String(vec) => {
+                for c in vec {
+                    f.write_fmt(format_args!("({})", c))?;
+                }
+            }
+            Regex::Concat(lhs, rhs) => {
+                f.write_fmt(format_args!("({}{})", lhs, rhs))?;
+            }
+            Regex::Union(lhs, rhs) => {
+                f.write_fmt(format_args!("({}|{})", lhs, rhs))?;
+            }
+            Regex::KleeneStar(regex) => {
+                f.write_fmt(format_args!("({}*)", regex))?;
+            }
+        }
+        Ok(())
+    }
+}
 
 #[derive(Clone)]
 pub struct Transition<S: Symbol> {
@@ -391,6 +465,73 @@ impl<S: Symbol> Automaton<S> {
             accepting,
             transitions
         )
+    }
+
+    fn regex(&self) -> Regex<S> {
+        use Regex::*;
+        let mut regex_transitions = (0..self.size())
+            .into_iter()
+            .map(|state| {
+                let mut transitions: HashMap<usize, Regex<S>> = HashMap::new();
+                self.transitions(state)
+                    .into_iter()
+                    .for_each(|transition| {
+                        let current_regex = if let Some(symbol) = transition.symbol { String(vec![symbol]) } else { String(vec![]) };
+                        if transitions.contains_key(&transition.next_state) {
+                            let edge_regex = transitions[&transition.next_state].clone();
+                            transitions.insert(transition.next_state, Regex::union(edge_regex, current_regex));
+                        } else {
+                            transitions.insert(transition.next_state, current_regex);
+                        }
+                    });
+                if self.accepting(state) {
+                    transitions.insert(self.size(), String(vec![]));
+                }
+                transitions
+            })
+            .collect::<Vec<_>>();
+        for state in 0..self.size() {
+            if state == self.initial() {
+                continue;
+            }
+            let transitions = regex_transitions[state].clone();
+            for from in 0..self.size() {
+                if from == state {
+                    continue;
+                }
+                if regex_transitions[from].contains_key(&state) {
+                    for (to, regex) in &transitions {
+                        if *to == state {
+                            continue;
+                        }
+                        let current_regex = Regex::concat(
+                            regex_transitions[from][&state].clone(),
+                            if regex_transitions[state].contains_key(&state) {
+                                Regex::concat(Regex::kleene_star(regex_transitions[state][&state].clone()), regex.clone())
+                            } else {
+                                regex.clone()
+                            }
+                        );
+                        if regex_transitions[from].contains_key(to) {
+                            let edge_regex = regex_transitions[from][to].clone();
+                            regex_transitions[from].insert(*to, Regex::union(edge_regex, current_regex));
+                        } else {
+                            regex_transitions[from].insert(*to, current_regex);
+                        }
+                    }
+                    regex_transitions[from].remove(&state);
+                }
+            }
+        }
+        if !regex_transitions[self.initial()].contains_key(&self.size()) {
+            panic!("cannot construct regex from automaton that accepts no words");
+        }
+        if regex_transitions[self.initial()].contains_key(&self.initial()) {
+            Regex::concat(Regex::kleene_star(regex_transitions[self.initial()][&self.initial].clone()),
+                          regex_transitions[self.initial()][&self.size()].clone())
+        } else {
+            regex_transitions[self.initial()][&self.size()].clone()
+        }
     }
 }
 
