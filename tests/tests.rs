@@ -12,13 +12,11 @@ fn test_dfa() {
     assert!(automaton.is_dfa());
     let accepted_words = ["abc", "b", "aaab", "bc"];
     for word in accepted_words {
-        let chars: Vec<char> = word.chars().collect();
-        assert!(automaton.accepted(&chars[..]));
+        assert!(accepted_str(&automaton, word));
     }
     let unaccepted_words = ["ac", "a", "bb", "cba"];
     for word in unaccepted_words {
-        let chars: Vec<char> = word.chars().collect();
-        assert!(!automaton.accepted(&chars[..]));
+        assert!(!accepted_str(&automaton, word));
     }
 }
 
@@ -32,13 +30,11 @@ fn test_nfa() {
     automaton.set_accepting(1, true);
     let accepted_words = ["", "b", "aa", "abbb"];
     for word in accepted_words {
-        let chars: Vec<char> = word.chars().collect();
-        assert!(automaton.accepted(&chars[..]));
+        assert!(accepted_str(&automaton, word));
     }
     let unaccepted_words = ["aba", "bba", "c"];
     for word in unaccepted_words {
-        let chars: Vec<char> = word.chars().collect();
-        assert!(!automaton.accepted(&chars[..]));
+        assert!(!accepted_str(&automaton, word));
     }
 }
 
@@ -181,6 +177,19 @@ fn test_to_regex_and_back() {
     let regex = automaton.regex();
     let automaton_from_regex = Automaton::dfa_from(&Automaton::from_regex(automaton.alphabet(), &regex));
     stress_automaton_equivalence(&automaton, &automaton_from_regex, 15);
+}
+
+#[test]
+fn test_to_string_and_back() {
+    let mut automaton = Automaton::new(&['a', 'b'], 2);
+    automaton.set_initial(0);
+    automaton.add_symbol_transition(0, 0, 'a');
+    automaton.add_empty_transition(0, 1);
+    automaton.add_symbol_transition(1, 1, 'b');
+    automaton.set_accepting(1, true);
+    let string = automaton_to_string(&automaton);
+    let automaton_from_string = automaton_from_string(&['a', 'b'], &string);
+    stress_automaton_equivalence(&automaton, &automaton_from_string, 15);
 }
 
 #[test]
