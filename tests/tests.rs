@@ -1,6 +1,4 @@
-use super::*;
-
-impl Symbol for char {}
+use automaton::*;
 
 #[test]
 fn test_dfa() {
@@ -48,8 +46,6 @@ enum Binary {
     Zero,
     One
 }
-
-impl Symbol for Binary {}
 
 #[test]
 fn test_nfa_with_enum() {
