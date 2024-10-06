@@ -1,5 +1,6 @@
 use super::*;
 use std::cmp::max;
+use std::str::Chars;
 
 pub fn automaton_from_string(alphabet: &'static [char], string: &str) -> Automaton<char> {
     let mut automaton = Automaton::new(alphabet, 1);
@@ -80,4 +81,61 @@ pub fn automaton_to_gviz_dot(automaton: &Automaton<char>) -> String {
 pub fn accepted_str(automaton: &Automaton<char>, word: &str) -> bool {
     let chars: Vec<char> = word.chars().collect();
     automaton.accepted(&chars[..])
+}
+
+fn parse_regex_block_from_chars(chars: &mut Chars) -> Regex<char> {
+    let mut last_union_block: Option<Regex<char>> = None;
+    let mut last_concat_block: Option<Regex<char>> = None;
+    let mut last_kleene_block: Option<Regex<char>> = None;
+    loop {
+        if let Some(c) = chars.next() {
+            if c == ')' {
+                break;
+            } else if c == '|' {
+                if let Some(last_concat_block_regex) = last_concat_block {
+                    last_concat_block = Some(Regex::concat(last_concat_block_regex, last_kleene_block.unwrap()));
+                } else {
+                    last_concat_block = last_kleene_block;
+                }
+                if let Some(last_union_block_regex) = last_union_block {
+                    last_union_block = Some(Regex::union(last_union_block_regex, last_concat_block.unwrap()));
+                } else {
+                    last_union_block = last_concat_block;
+                }
+                last_concat_block = None;
+                last_kleene_block = None;
+            } else if c == '*' {
+                last_kleene_block = Some(Regex::kleene_star(last_kleene_block.unwrap()));
+            } else {
+                let block = if c == '(' {
+                    parse_regex_block_from_chars(chars)
+                } else {
+                    Regex::String(vec![c])
+                };
+                if let Some(last_concat_block_regex) = last_concat_block {
+                    last_concat_block = Some(Regex::concat(last_concat_block_regex, last_kleene_block.unwrap()));
+                } else {
+                    last_concat_block = last_kleene_block;
+                }
+                last_kleene_block = Some(block);
+            }
+        } else {
+            break;
+        }
+    }
+    if let Some(last_concat_block_regex) = last_concat_block {
+        last_concat_block = Some(Regex::concat(last_concat_block_regex, last_kleene_block.unwrap()));
+    } else {
+        last_concat_block = last_kleene_block;
+    }
+    if let Some(last_union_block_regex) = last_union_block {
+        last_union_block = Some(Regex::union(last_union_block_regex, last_concat_block.unwrap()));
+    } else {
+        last_union_block = last_concat_block;
+    }
+    last_union_block.unwrap()
+}
+
+pub fn parse_regex_from_string(string: &str) -> Regex<char> {
+    parse_regex_block_from_chars(&mut string.chars())
 }

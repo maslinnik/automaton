@@ -1,4 +1,5 @@
 use automaton::*;
+use automaton::char_automaton::*;
 
 #[test]
 fn test_dfa() {
@@ -179,5 +180,25 @@ fn test_to_regex_and_back() {
     automaton.set_accepting(3, true);
     let regex = automaton.regex();
     let automaton_from_regex = Automaton::dfa_from(&Automaton::from_regex(automaton.alphabet(), &regex));
+    stress_automaton_equivalence(&automaton, &automaton_from_regex, 15);
+}
+
+#[test]
+fn test_to_string_regex_and_back() {
+    let mut automaton = Automaton::new(&['a', 'b'], 4);
+    automaton.add_symbol_transition(0, 3, 'a');
+    automaton.add_symbol_transition(0, 1, 'b');
+    automaton.add_symbol_transition(1, 1, 'a');
+    automaton.add_symbol_transition(1, 2, 'b');
+    automaton.add_symbol_transition(2, 3, 'a');
+    automaton.add_symbol_transition(2, 1, 'b');
+    automaton.add_symbol_transition(3, 3, 'a');
+    automaton.add_symbol_transition(3, 3, 'b');
+    automaton.set_initial(0);
+    automaton.set_accepting(3, true);
+    let regex = automaton.regex();
+    let regex_string = format!("{}", regex);
+    let regex_from_string = parse_regex_from_string(&regex_string);
+    let automaton_from_regex = Automaton::dfa_from(&Automaton::from_regex(automaton.alphabet(), &regex_from_string));
     stress_automaton_equivalence(&automaton, &automaton_from_regex, 15);
 }
