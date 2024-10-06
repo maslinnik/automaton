@@ -78,8 +78,8 @@ impl<S: Eq + Clone + Hash + 'static + fmt::Display> fmt::Display for Regex<S> {
 
 #[derive(Clone)]
 pub struct Transition<S: Eq + Clone + Hash + 'static> {
-    next_state: usize,
-    symbol: Option<S>,
+    pub next_state: usize,
+    pub symbol: Option<S>,
 }
 
 impl<S: Eq + Clone + Hash + 'static> Transition<S> {
@@ -703,3 +703,5 @@ impl<S: Eq + Clone + Hash + 'static> Automaton<S> {
         };
     }
 }
+
+pub mod char_automaton;
