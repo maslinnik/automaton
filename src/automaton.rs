@@ -285,11 +285,24 @@ impl<S: Symbol> Automaton<S> {
                 self.accepting(reached_state)
             })
         } else {
-            self.reached_by_epsilon(state).into_iter().any(|reached_state| {
-                self.symbol_transitions(reached_state, &word[0]).iter().any(|next_state| {
-                    self.accepted_from_state(*next_state, &word[1..])
-                })
-            })
+            if self.empty_transitions(state).is_empty() {
+                self.symbol_transitions(state, &word[0])
+                    .iter()
+                    .any(|next_state| {
+                        self.accepted_from_state(*next_state, &word[1..])
+                    })
+            } else {
+                self.reached_by_epsilon(state).into_iter()
+                    .map(|reached_state| {
+                        self.symbol_transitions(reached_state, &word[0])
+                    })
+                    .flatten()
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .any(|next_state| {
+                        self.accepted_from_state(*next_state, &word[1..])
+                    })
+            }
         }
     }
 
